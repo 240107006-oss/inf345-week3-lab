@@ -1,0 +1,60 @@
+# INF 345 - Week 3: checks your project registration.
+#
+# Runs on your pull request. It checks that you added exactly one file,
+# projects/<your-github-username>.yml, and that the repository in it is
+# yours and public - because on Sunday night a machine clones it.
+
+name: Check project registration
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate registration
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check that only one file in projects/ was added or changed
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          changed=$(git diff --name-only "origin/$BASE_REF"...HEAD)
+          echo "Files changed in this pull request:"
+          echo "$changed" | sed 's/^/  /'
+          outside=$(echo "$changed" | grep -v '^projects/' || true)
+          if [ -n "$outside" ]; then
+            echo "::error::This pull request changes files outside projects/. Add exactly one file: projects/<your-github-username>.yml"
+            exit 1
+          fi
+          count=$(echo "$changed" | grep -c '^projects/' || true)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::Expected exactly 1 changed file in projects/, found $count. Do not edit anyone else's file."
+            exit 1
+          fi
+
+      # The username arrives as an environment variable, never pasted into the
+      # command with ${{ }}. Anything a user controls must not be interpolated
+      # into a shell line - the Week 1 rule, still true.
+      - name: Validate the registration
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            python3 scripts/validate_project.py --author "$PR_AUTHOR"
+          else
+            python3 scripts/validate_project.py --all
+          fi

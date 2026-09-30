@@ -1,0 +1,5 @@
+# Copy this file to projects/<your-github-username>.yml and fill it in.
+# One file per student. Do not edit anyone else's.
+repo: https://github.com/octocat/notes-service
+language: python
+what: A small notes API
